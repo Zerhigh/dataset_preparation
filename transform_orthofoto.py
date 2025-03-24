@@ -2,21 +2,29 @@ import numpy
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import geopandas as gpd
 import rasterio as rio
+from shapely.geometry import box
 from rasterio.warp import reproject, Resampling
 from pathlib import Path
 
 ortho_base = Path('/data/USERS/shollend/orthophoto/austria_full/')
 sentinel2_base = Path('/data/USERS/shollend/sentinel2/full_austria/sr_inference/bilinear/')
 
-ortho_trafo_target = ortho_base / 'target_transformed'
-ortho_trafo_input = ortho_base / 'input_transformed'
+ortho_trafo_target = ortho_base / 'target_transformed2'
+ortho_trafo_input = ortho_base / 'input_transformed2'
 
 ortho_trafo_target.mkdir(parents=True, exist_ok=True)
 ortho_trafo_input.mkdir(parents=True, exist_ok=True)
 
 download_table = pd.read_csv('/home/shollend/coding/download_stratified_ALL_S2_points_wdate_filter_combined.csv')
+austria = gpd.read_file('/data/USERS/shollend/oesterreich_border/oesterreich.shp')
+austria32 = austria.to_crs('32632')
+austria33 = austria.to_crs('32633')
+border32 = austria32.loc[[0], 'geometry'].values[0]
+border33 = austria33.loc[[0], 'geometry'].values[0]
 
+geoms = {32: border32, 33: border33}
 
 def transform_ortho(ortho_fp: str | Path,
                     ortho_op: str | Path,
@@ -48,8 +56,10 @@ def transform_ortho(ortho_fp: str | Path,
             dst.write(dst_data)
     return
 
+excluded_ortho = []
+excluded_s2 = []
 
-for i, row in tqdm(download_table[:50].iterrows()):
+for i, row in tqdm(download_table.iterrows()):
     s2_path = sentinel2_base / f'{row.s2_download_id}.tif'
     ortho_target = ortho_base / 'target' / f'target_{row.id}.tif'
     ortho_input = ortho_base / 'input' / f'input_{row.id}.tif'
@@ -57,6 +67,8 @@ for i, row in tqdm(download_table[:50].iterrows()):
     ex = [Path.exists(p) for p in (s2_path, ortho_target, ortho_input)]
     if False in ex:
         print(f'couldnt find file {s2_path, ortho_target, ortho_input}')
+        excluded_ortho.append(f'target_{row.id}.tif')
+        excluded_s2.append(f'{row.s2_download_id}.tif')
         continue
 
     # open sentinel image tile
@@ -64,6 +76,13 @@ for i, row in tqdm(download_table[:50].iterrows()):
         dst_crs = ssrc.crs
         dst_transform = ssrc.transform
         dst_width, dst_height = ssrc.width, ssrc.height
+        geom = box(*ssrc.bounds)
+
+        border = geoms[dst_crs.data['zone']]
+
+        if not geom.intersects(border):
+            print(f'tile {row.id} is out of bounds from austria')
+            continue
 
     transform_ortho(ortho_fp=ortho_target, ortho_op=ortho_trafo_target / f'target_{row.id}.tif',
                     s2_crs=dst_crs,
@@ -78,6 +97,9 @@ for i, row in tqdm(download_table[:50].iterrows()):
                     s2_width=dst_width,
                     s2_height=dst_height,
                     )
+
+print(excluded_s2)
+print(excluded_ortho)
 
 #
 # for file in sentinel2_base.glob("*.tif"):
