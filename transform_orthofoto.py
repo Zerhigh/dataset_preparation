@@ -1,12 +1,13 @@
 import numpy
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 import rasterio as rio
 from rasterio.warp import reproject, Resampling
 from pathlib import Path
 
 ortho_base = Path('/data/USERS/shollend/orthophoto/austria_full/')
-sentinel2_base = Path('/data/USERS/shollend/sentinel2/full_austria/output_s2/')
+sentinel2_base = Path('/data/USERS/shollend/sentinel2/full_austria/sr_inference/bilinear/')
 
 ortho_trafo_target = ortho_base / 'target_transformed'
 ortho_trafo_input = ortho_base / 'input_transformed'
@@ -40,8 +41,6 @@ def transform_ortho(ortho_fp: str | Path,
             resampling=Resampling.nearest
         )
 
-        print(np.unique(dst_data))
-
         profile = osrc.profile
         profile.update(transform=s2_transform, crs=s2_crs, width=s2_width, height=s2_height)
 
@@ -50,7 +49,7 @@ def transform_ortho(ortho_fp: str | Path,
     return
 
 
-for i, row in download_table.iterrows():
+for i, row in tqdm(download_table[:50].iterrows()):
     s2_path = sentinel2_base / f'{row.s2_download_id}.tif'
     ortho_target = ortho_base / 'target' / f'target_{row.id}.tif'
     ortho_input = ortho_base / 'input' / f'input_{row.id}.tif'
