@@ -1,6 +1,8 @@
 import numpy
+import os
 import numpy as np
 import pandas as pd
+from multiprocessing import Pool
 from tqdm import tqdm
 import geopandas as gpd
 import rasterio as rio
@@ -59,7 +61,7 @@ def transform_ortho(ortho_fp: str | Path,
 excluded_ortho = []
 excluded_s2 = []
 
-for i, row in tqdm(download_table.iterrows()):
+def _parallel(row):
     s2_path = sentinel2_base / f'{row.s2_download_id}.tif'
     ortho_target = ortho_base / 'target' / f'target_{row.id}.tif'
     ortho_input = ortho_base / 'input' / f'input_{row.id}.tif'
@@ -69,7 +71,7 @@ for i, row in tqdm(download_table.iterrows()):
         print(f'couldnt find file {s2_path, ortho_target, ortho_input}')
         excluded_ortho.append(f'target_{row.id}.tif')
         excluded_s2.append(f'{row.s2_download_id}.tif')
-        continue
+        return
 
     # open sentinel image tile
     with rio.open(s2_path) as ssrc:
@@ -82,7 +84,7 @@ for i, row in tqdm(download_table.iterrows()):
 
         if not geom.intersects(border):
             print(f'tile {row.id} is out of bounds from austria')
-            continue
+            return
 
     transform_ortho(ortho_fp=ortho_target, ortho_op=ortho_trafo_target / f'target_{row.id}.tif',
                     s2_crs=dst_crs,
@@ -98,43 +100,18 @@ for i, row in tqdm(download_table.iterrows()):
                     s2_height=dst_height,
                     )
 
+    return
+
+
+def download_parallel():
+    # Extract rows as dictionaries for easier parallel processing
+    rows = [row for _, row in download_table.iterrows()]
+
+    with Pool(processes=os.cpu_count()) as pool:
+        results = pool.map(_parallel, rows)
+    return
+
+download_parallel()
+
 print(excluded_s2)
 print(excluded_ortho)
-
-#
-# for file in sentinel2_base.glob("*.tif"):
-#     ind = int(file.stem.split("_")[1])
-#     ortho_fn = f'input_{ind}.tif'
-#
-#     with rio.open(file) as ssrc:
-#         dst_crs = ssrc.crs  # Get CRS of raster 2
-#         dst_transform = ssrc.transform  # Get transform (extent & resolution)
-#         dst_width, dst_height = ssrc.width, ssrc.height  # Get dimensions
-#
-#     with rio.open(ortho_base / ortho_fn) as osrc:
-#         src_data = osrc.read()  # Read first band
-#         src_crs = osrc.crs
-#
-#         # Create a new raster with same shape as raster 2
-#         dst_data = numpy.zeros(shape=(4, ssrc.shape[1], ssrc.shape[1]), dtype='uint8')
-#
-#         a, _ = reproject(
-#             source=src_data,
-#             destination=dst_data,
-#             src_transform=osrc.transform,
-#             src_crs=src_crs,
-#             dst_transform=dst_transform,
-#             dst_crs=dst_crs,
-#             resampling=Resampling.nearest  # You can change to nearest, cubic, etc.
-#         )
-#
-#         print(np.unique(dst_data))
-#
-#         profile = osrc.profile
-#         profile.update(transform=dst_transform, crs=dst_crs, width=dst_width, height=dst_height)
-#
-#         with rio.open(f'output_{ind}.tif', 'w+', **profile) as dst:
-#             dst.write(dst_data)
-#
-#     pass
-#     break
