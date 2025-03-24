@@ -1,4 +1,5 @@
 import time
+from typing import Tuple
 
 import numpy
 import os
@@ -33,12 +34,13 @@ statelog = pd.read_csv(ortho_base / 'statelog.csv')
 statelog = statelog.merge(download_table_filtered, on='id', how='left')
 statelog['in_austria'] = False
 
+
 def transform_ortho(ortho_fp: str | Path,
                     ortho_op: str | Path,
                     s2_crs: str,
                     s2_transform: rio.transform.Affine,
                     s2_width: int,
-                    s2_height: int):
+                    s2_height: int) -> None:
 
     with rio.open(ortho_fp) as osrc:
         src_data = osrc.read()
@@ -64,7 +66,7 @@ def transform_ortho(ortho_fp: str | Path,
     return
 
 
-def _parallel(row):
+def _parallel(row: pd.Series) -> Tuple[int, bool]:
     s2_path = sentinel2_base / f'{row.s2_download_id}.tif'
     ortho_target = ortho_base / 'target' / f'target_{row.id}.tif'
     ortho_input = ortho_base / 'input' / f'input_{row.id}.tif'
