@@ -28,7 +28,7 @@ def transform_ortho(ortho_fp: str | Path,
         src_data = osrc.read()
         src_crs = osrc.crs
 
-        dst_data = numpy.zeros(shape=(4, s2_width, s2_height), dtype='uint8')
+        dst_data = numpy.zeros(shape=(osrc.count, s2_width, s2_height), dtype='uint8')
 
         a, _ = reproject(
             source=src_data,
