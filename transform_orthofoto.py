@@ -1,3 +1,5 @@
+import time
+
 import numpy
 import os
 import numpy as np
@@ -13,20 +15,23 @@ from pathlib import Path
 ortho_base = Path('/data/USERS/shollend/orthophoto/austria_full/')
 sentinel2_base = Path('/data/USERS/shollend/sentinel2/full_austria/sr_inference/bilinear/')
 
-ortho_trafo_target = ortho_base / 'target_transformed2'
-ortho_trafo_input = ortho_base / 'input_transformed2'
+ortho_trafo_target = ortho_base / 'target_transformed'
+ortho_trafo_input = ortho_base / 'input_transformed'
 
 ortho_trafo_target.mkdir(parents=True, exist_ok=True)
 ortho_trafo_input.mkdir(parents=True, exist_ok=True)
 
 download_table = pd.read_csv('/home/shollend/coding/download_stratified_ALL_S2_points_wdate_filter_combined.csv')
+download_table_filtered = download_table[['id', 's2_download_id']]
+
 austria = gpd.read_file('/data/USERS/shollend/oesterreich_border/oesterreich.shp')
 austria32 = austria.to_crs('32632')
 austria33 = austria.to_crs('32633')
-border32 = austria32.loc[[0], 'geometry'].values[0]
-border33 = austria33.loc[[0], 'geometry'].values[0]
+geoms = {32: austria32.loc[[0], 'geometry'].values[0], 33: austria33.loc[[0], 'geometry'].values[0]}
 
-geoms = {32: border32, 33: border33}
+statelog = pd.read_csv(ortho_base / 'statelog.csv')
+statelog = statelog.merge(download_table_filtered, on='id', how='left')
+statelog['in_austria'] = False
 
 def transform_ortho(ortho_fp: str | Path,
                     ortho_op: str | Path,
@@ -58,8 +63,6 @@ def transform_ortho(ortho_fp: str | Path,
             dst.write(dst_data)
     return
 
-excluded_ortho = []
-excluded_s2 = []
 
 def _parallel(row):
     s2_path = sentinel2_base / f'{row.s2_download_id}.tif'
@@ -69,9 +72,7 @@ def _parallel(row):
     ex = [Path.exists(p) for p in (s2_path, ortho_target, ortho_input)]
     if False in ex:
         print(f'couldnt find file {s2_path, ortho_target, ortho_input}')
-        excluded_ortho.append(f'target_{row.id}.tif')
-        excluded_s2.append(f'{row.s2_download_id}.tif')
-        return
+        return row.id, False
 
     # open sentinel image tile
     with rio.open(s2_path) as ssrc:
@@ -83,8 +84,8 @@ def _parallel(row):
         border = geoms[dst_crs.data['zone']]
 
         if not geom.intersects(border):
-            print(f'tile {row.id} is out of bounds from austria')
-            return
+            #print(f'tile {row.id} is out of bounds from austria')
+            return row.id, False
 
     transform_ortho(ortho_fp=ortho_target, ortho_op=ortho_trafo_target / f'target_{row.id}.tif',
                     s2_crs=dst_crs,
@@ -100,18 +101,24 @@ def _parallel(row):
                     s2_height=dst_height,
                     )
 
-    return
+    return row.id, True
 
 
 def download_parallel():
     # Extract rows as dictionaries for easier parallel processing
+    print('start')
+    start = time.time()
     rows = [row for _, row in download_table.iterrows()]
 
     with Pool(processes=os.cpu_count()) as pool:
         results = pool.map(_parallel, rows)
+
+    for id, result in results:
+        statelog.loc[statelog.id == id, 'in_austria'] = result
+    statelog.to_csv(ortho_base / 'statelog_updated.csv')
+
+    print(f'took: {round(time.time()-start, 2)}s')
+
     return
 
 download_parallel()
-
-print(excluded_s2)
-print(excluded_ortho)
