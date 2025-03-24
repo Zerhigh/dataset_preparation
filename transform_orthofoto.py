@@ -55,6 +55,11 @@ for i, row in download_table.iterrows():
     ortho_target = ortho_base / 'target' / f'target_{row.id}.tif'
     ortho_input = ortho_base / 'input' / f'input_{row.id}.tif'
 
+    ex = [Path.exists(p) for p in (s2_path, ortho_target, ortho_input)]
+    if False in ex:
+        print(f'couldnt find file {s2_path, ortho_target, ortho_input}')
+        continue
+
     # open sentinel image tile
     with rio.open(s2_path) as ssrc:
         dst_crs = ssrc.crs
