@@ -13,7 +13,7 @@ from shapely.geometry import box
 from rasterio.warp import reproject, Resampling
 from pathlib import Path
 
-ortho_base = Path('/data/USERS/shollend/orthophoto/austria_full/')
+ortho_base = Path('/data/USERS/shollend/orthophoto/austria_full_allclasses/')
 sentinel2_base = Path('/data/USERS/shollend/sentinel2/full_austria/sr_inference/bilinear/')
 
 ortho_trafo_target = ortho_base / 'target_transformed'
@@ -23,7 +23,7 @@ ortho_trafo_target.mkdir(parents=True, exist_ok=True)
 ortho_trafo_input.mkdir(parents=True, exist_ok=True)
 
 download_table = pd.read_csv('/home/shollend/coding/download_stratified_ALL_S2_points_wdate_filter_combined.csv')
-download_table_filtered = download_table[['id', 's2_download_id']]
+download_table_filtered = download_table[['id', 's2_full_id', 'lon', 'lat', 'cs_cdf', 'corine','abs_days_diff','time','ARCHIVNR', 's2_download_id']]
 
 austria = gpd.read_file('/data/USERS/shollend/oesterreich_border/oesterreich.shp')
 austria32 = austria.to_crs('32632')
