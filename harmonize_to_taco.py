@@ -34,7 +34,9 @@ def harmoinze(df):
     # drop tiles outside of austria
     df = df[df.in_austria == True]
 
-    for i, row in tqdm(df.iterrows()):
+    new_data = {}
+
+    for i, (id, row) in tqdm(enumerate(df.iterrows())):
         s2 = sentinel2_base / f'{row.s2_download_id}.tif'
         ortho_target = ortho_target_base / f'target_{row.id}.tif'
         ortho_input = ortho_input_base / f'input_{row.id}.tif'
@@ -43,6 +45,20 @@ def harmoinze(df):
         shutil.copy(s2, ts2 / f'S2_{new_id}.tif')
         shutil.copy(ortho_target, tmask / f'HR_mask_{new_id}.tif')
         shutil.copy(ortho_input, tortho / f'HR_ortho_{new_id}.tif')
+
+        new_data[i] = row
+
+    new_df = pd.DataFrame.from_dict(new_data, orient="index")
+
+    try:
+        new_df.rename(columns={"id": "orthofoto_id"}, inplace=True)
+        new_df.drop(columns=["Unnamed: 0", "contains_nodata", "aerial", "cadaster"], inplace=True, errors="ignore")
+    except:
+        print('error renaming')
+
+    new_df.to_csv(taco / 'metadata.csv')
+
+
 
     return
 
