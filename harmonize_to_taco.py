@@ -20,7 +20,7 @@ sentinel2_base = Path('/data/USERS/shollend/sentinel2/full_austria/output_s2/')
 ortho_target_base = ortho_base / 'target_transformed'
 ortho_input_base = ortho_base / 'input_transformed'
 
-taco = Path('/data/USERS/shollend/taco/')
+taco = Path('/data/USERS/shollend/taco_example2/')
 ts2 = taco / 'lr_s2'
 tmask = taco / 'hr_mask'
 tortho = taco / 'hr_orthofoto'
@@ -45,9 +45,9 @@ def harmoinze(df):
 
         new_id = f"{i:05d}"
         row.image_id = f"{new_id}.tif"
-        # shutil.copy(s2, ts2 / f'S2_{new_id}.tif')
-        # shutil.copy(ortho_target, tmask / f'HR_mask_{new_id}.tif')
-        # shutil.copy(ortho_input, tortho / f'HR_ortho_{new_id}.tif')
+        shutil.copy(s2, ts2 / f'S2_{new_id}.tif')
+        shutil.copy(ortho_target, tmask / f'HR_mask_{new_id}.tif')
+        shutil.copy(ortho_input, tortho / f'HR_ortho_{new_id}.tif')
 
         new_data[i] = row
 
