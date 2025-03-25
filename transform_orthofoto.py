@@ -40,7 +40,7 @@ def transform_ortho(ortho_fp: str | Path,
                     s2_crs: str,
                     s2_transform: rio.transform.Affine,
                     s2_width: int,
-                    s2_height: int) -> None:
+                    s2_height: int) -> None | pd.DataFrame:
 
     with rio.open(ortho_fp) as osrc:
         src_data = osrc.read()
@@ -63,7 +63,27 @@ def transform_ortho(ortho_fp: str | Path,
 
         with rio.open(ortho_op, 'w+', **profile) as dst:
             dst.write(dst_data)
-    return
+
+        if osrc.count == 1:
+            # update metadata count etc
+            num_px = s2_width * s2_height
+            counts = gdf['label'].value_counts().to_dict()
+
+            # add no data value
+            tile_state.class_distributions[0] = round(np.count_nonzero(binary_raster == 0) / num_px, 3)
+
+            for ml in config.mask_label:
+                count = np.count_nonzero(binary_raster == ml)
+                tile_state.class_distributions[ml] = round(count / num_px, 3)
+                tile_state.class_instance_count[ml] = counts[ml] if ml in counts else 0
+
+            for (kd, vd), (kc, vc) in zip(self.class_distributions.items(), self.class_instance_count.items()):
+                base[f'dist_{kd}'] = vd
+                base[f'count_{kc}'] = vc
+
+            return 0
+        else:
+            return None
 
 
 def _parallel(row: pd.Series) -> Tuple[int, bool]:
@@ -89,7 +109,7 @@ def _parallel(row: pd.Series) -> Tuple[int, bool]:
             #print(f'tile {row.id} is out of bounds from austria')
             return row.id, False
 
-    transform_ortho(ortho_fp=ortho_target, ortho_op=ortho_trafo_target / f'target_{row.id}.tif',
+    statistics = transform_ortho(ortho_fp=ortho_target, ortho_op=ortho_trafo_target / f'target_{row.id}.tif',
                     s2_crs=dst_crs,
                     s2_transform=dst_transform,
                     s2_width=dst_width,
@@ -123,4 +143,20 @@ def download_parallel():
 
     return
 
-download_parallel()
+def download_sequential():
+    # Extract rows as dictionaries for easier parallel processing
+    print('start')
+    start = time.time()
+
+    for _, row in download_table.iterrows():
+        results = _parallel(row)
+
+    for id, result in results:
+        statelog.loc[statelog.id == id, 'in_austria'] = result
+    statelog.to_csv(ortho_base / 'statelog_updated.csv')
+
+    print(f'took: {round(time.time()-start, 2)}s')
+
+    return
+
+download_sequential()
