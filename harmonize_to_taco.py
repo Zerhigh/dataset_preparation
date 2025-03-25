@@ -1,4 +1,5 @@
 import time
+from traceback import print_tb
 from typing import Tuple
 
 import numpy
@@ -32,7 +33,8 @@ statelog = pd.read_csv(ortho_base / 'statelog_updated.csv')
 
 def harmoinze(df):
     # drop tiles outside of austria
-    df = df[df.in_austria == True]
+    df = df[df.in_austria == True].copy()
+    df['image_id'] = ''
 
     new_data = {}
 
@@ -42,9 +44,10 @@ def harmoinze(df):
         ortho_input = ortho_input_base / f'input_{row.id}.tif'
 
         new_id = f"{i:05d}"
-        shutil.copy(s2, ts2 / f'S2_{new_id}.tif')
-        shutil.copy(ortho_target, tmask / f'HR_mask_{new_id}.tif')
-        shutil.copy(ortho_input, tortho / f'HR_ortho_{new_id}.tif')
+        row.image_id = f"{new_id}.tif"
+        # shutil.copy(s2, ts2 / f'S2_{new_id}.tif')
+        # shutil.copy(ortho_target, tmask / f'HR_mask_{new_id}.tif')
+        # shutil.copy(ortho_input, tortho / f'HR_ortho_{new_id}.tif')
 
         new_data[i] = row
 
@@ -56,8 +59,7 @@ def harmoinze(df):
     except:
         print('error renaming')
 
-    new_df.to_csv(taco / 'metadata.csv')
-
+    new_df.to_csv(taco / 'metadata.csv', index=False)
 
 
     return
