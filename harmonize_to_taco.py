@@ -34,7 +34,7 @@ def harmoinze(df):
     # drop tiles outside of austria
     df = df[df.in_austria == True]
 
-    for i, row in df[:20].iterrows():
+    for i, row in tqdm(df.iterrows()):
         s2 = sentinel2_base / f'{row.s2_download_id}.tif'
         ortho_target = ortho_target_base / f'target_{row.id}.tif'
         ortho_input = ortho_input_base / f'input_{row.id}.tif'
