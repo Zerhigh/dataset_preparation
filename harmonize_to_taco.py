@@ -40,9 +40,9 @@ def harmoinze(df):
         ortho_input = ortho_input_base / f'input_{row.id}.tif'
 
         new_id = f"{i:05d}"
-        s2.rename(ts2 / f'S2_{new_id}.tif')
-        ortho_target.rename(tmask / f'HR_mask_{new_id}.tif')
-        ortho_input.rename(tortho / f'HR_ortho_{new_id}.tif')
+        shutil.copy(s2, ts2 / f'S2_{new_id}.tif')
+        shutil.copy(ortho_target, tmask / f'HR_mask_{new_id}.tif')
+        shutil.copy(ortho_input, tortho / f'HR_ortho_{new_id}.tif')
 
     return
 
