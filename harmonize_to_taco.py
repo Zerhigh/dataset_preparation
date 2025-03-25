@@ -17,8 +17,8 @@ from pathlib import Path
 
 ortho_base = Path('/data/USERS/shollend/orthophoto/austria_full_allclasses/')
 sentinel2_base = Path('/data/USERS/shollend/sentinel2/full_austria/output_s2/')
-ortho_target_base = ortho_base / 'target_transformed'
-ortho_input_base = ortho_base / 'input_transformed'
+ortho_target_base = ortho_base / 'target_transformed_statistics'
+ortho_input_base = ortho_base / 'input_transformed_statistics'
 
 taco = Path('/data/USERS/shollend/taco_example2/')
 ts2 = taco / 'lr_s2'
@@ -29,7 +29,7 @@ ts2.mkdir(parents=True, exist_ok=True)
 tmask.mkdir(parents=True, exist_ok=True)
 tortho.mkdir(parents=True, exist_ok=True)
 
-statelog = pd.read_csv(ortho_base / 'statelog_updated.csv')
+statelog = pd.read_csv(ortho_base / 'statelog_updated_statistics.csv')
 
 
 def harmoinze(df):
