@@ -1,18 +1,7 @@
-import time
-from traceback import print_tb
-from typing import Tuple
 
-import numpy
-import os
-import numpy as np
 import pandas as pd
 import shutil
-from multiprocessing import Pool
 from tqdm import tqdm
-import geopandas as gpd
-import rasterio as rio
-from shapely.geometry import box
-from rasterio.warp import reproject, Resampling
 from pathlib import Path
 
 ortho_base = Path('/data/USERS/shollend/orthophoto/austria_full_allclasses/')
