@@ -55,8 +55,8 @@ def harmoinze(df):
     new_df = pd.DataFrame.from_dict(new_data, orient="index")
 
     try:
-        new_df.rename(columns={"id": "orthofoto_id"}, inplace=True)
-        new_df.drop(columns=["Unnamed: 0", "contains_nodata", "aerial", "cadaster"], inplace=True, errors="ignore")
+        new_df.rename(columns={"id": "orthofoto_id", "contains_nodata": "orthofoto_contains_nodata"}, inplace=True)
+        new_df.drop(columns=["Unnamed: 0", "aerial", "cadaster"], inplace=True, errors="ignore")
     except:
         print('error renaming')
 
