@@ -4,7 +4,7 @@ import pandas as pd
 import geopandas as gpd
 import shapely
 
-base = Path("C:/Users/PC/Desktop/TU/Master/MasterThesis/data/metadata")
+base = Path("U:/master/dl2/combined_download")
 file = base / 's2_ortho_download_data.csv'
 
 
