@@ -1,10 +1,11 @@
+import shutil
 import pandas as pd
 import rasterio
-import pathlib
 from pathlib import Path
-import random
 import numpy as np
 import torch
+import tqdm
+from PIL import Image
 
 
 def resample_torch(arr: np.ndarray, scale_factor: float | int, mode: str = 'bilinear') -> np.ndarray:
@@ -56,7 +57,16 @@ def stretch(img):
 
 data_path = Path('/data/USERS/shollend/metadata/stratification_tables/filtered/test.csv')
 s2_path = Path('/data/USERS/shollend/combined_download/output/lr_s2')
+gt_path = Path('/data/USERS/shollend/combined_download/output/hr_mask')
+pred_path = Path('/data/USERS/shollend/inferred_buildings')
+tile_coords = [(0, 0), (0, 256), (256, 0), (256, 256)]
+
 to_path = Path('/data/USERS/shollend/image_samples')
+to_path_png = to_path / 'png'
+to_path_tif = to_path / 'tif'
+
+to_path_png.mkdir(exist_ok=True)
+to_path_tif.mkdir(exist_ok=True)
 
 sr_models = {
     "sr4rs": "/data/USERS/shollend/sentinel2/sr_inference/sr4rs",
@@ -73,12 +83,15 @@ sr_models = {
 
 data = pd.read_csv(data_path)
 sampeld = pd.concat([df.sample(n=3, random_state=32) for i, df in data.groupby(data['assigned_class'])], axis=0)
-print(sampeld.head())
+print(sampeld['id'])
 
-for i, row in sampeld.iterrows():
+for i, row in tqdm.tqdm(sampeld.iterrows()):
     img_id = f"{row['id']:05d}"
-    save_path = to_path / img_id
-    save_path.mkdir(exist_ok=True)
+    save_path_png = to_path_png / img_id
+    save_path_tif = to_path_tif / img_id
+
+    save_path_png.mkdir(exist_ok=True)
+    save_path_tif.mkdir(exist_ok=True)
 
     # get s2
     s2_id = f"S2_{img_id}.tif"
@@ -94,8 +107,17 @@ for i, row in sampeld.iterrows():
         new_profile['dtype'] = 'uint8'
         new_profile['nodata'] = None
 
-        with rasterio.open(save_path / s2_id, 'w', **new_profile) as s2_dst:
+        with rasterio.open(save_path_tif / s2_id, 'w', **new_profile) as s2_dst:
             s2_dst.write(s2_img)
+
+        # save as pnh
+        png_s2_img = np.transpose(s2_img, (1, 2, 0))
+        Image.fromarray(png_s2_img).save(save_path_png / s2_id)
+
+        s2tile_coords = [(0, 0), (0, 32), (32, 0), (32, 32)]
+        for i, (top, left) in enumerate(s2tile_coords):
+            s2_tile = png_s2_img[top:top + 32, left:left + 32, :]
+            Image.fromarray(s2_tile).save(save_path_png / f'{i}_{s2_id}')
 
     # get sr iamges
     for model, sr_path in sr_models.items():
@@ -117,7 +139,7 @@ for i, row in sampeld.iterrows():
             sr_save_id = f"SR_{model}_{img_id}.tif"
 
             # load bilinear trafo
-            with rasterio.open(save_path / f"SR_bilinear_{img_id}.tif", 'r') as bil_src:
+            with rasterio.open(save_path_tif / f"SR_bilinear_{img_id}.tif", 'r') as bil_src:
 
                 sr_profile = {
                     "dtype": sr_img.dtype,
@@ -130,8 +152,15 @@ for i, row in sampeld.iterrows():
                     'nodata': None,
                 }
 
-                with rasterio.open(save_path / sr_save_id, 'w', **sr_profile) as sr_dst:
+                with rasterio.open(save_path_tif / sr_save_id, 'w', **sr_profile) as sr_dst:
                     sr_dst.write(sr_img)
+
+            # save as pnh
+            png_sr_img = np.transpose(sr_img, (1, 2, 0))
+            Image.fromarray(png_sr_img).save(save_path_png / sr_save_id)
+            for i, (top, left) in enumerate(tile_coords):
+                mask_tile = png_sr_img[top:top + 256, left:left + 256, :]
+                Image.fromarray(mask_tile).save(save_path_png / f'{i}_{sr_save_id}')
 
             continue
 
@@ -149,7 +178,6 @@ for i, row in sampeld.iterrows():
             sr_bands = [1, 2, 3]
 
         with rasterio.open(sr_path / sr_id, 'r') as sr_src:
-            print(model, sr_bands)
             sr_img = sr_src.read(sr_bands)
             sr_img = stretch(sr_img)
 
@@ -160,14 +188,73 @@ for i, row in sampeld.iterrows():
             sr_profile['dtype'] = 'uint8'
             sr_profile['nodata'] = None
 
-            with rasterio.open(save_path / sr_save_id, 'w', **sr_profile) as sr_dst:
+            with rasterio.open(save_path_tif / sr_save_id, 'w', **sr_profile) as sr_dst:
                 sr_dst.write(sr_img)
 
+        # save as pnh
+        png_sr_img = np.transpose(sr_img, (1, 2, 0))
+        Image.fromarray(png_sr_img).save(save_path_png / sr_save_id)
+        for i, (top, left) in enumerate(tile_coords):
+            mask_tile = png_sr_img[top:top + 256, left:left + 256, :]
+            Image.fromarray(mask_tile).save(save_path_png / f'{i}_{sr_save_id}')
+
     # gt masks
+    gt_id = f"HR_mask_{img_id}.tif"
+    gt_img_path = gt_path / gt_id
+    with rasterio.open(gt_img_path, 'r') as gt_src:
+        # get rgb
+        gt_img = gt_src.read()
+        mask = gt_src.read(1).astype(np.uint8)
+        mask = (mask == 41).astype(np.uint8) * 255
+
+        gt_profile = gt_src.profile.copy()
+        gt_profile['count'] = 1
+        gt_profile['dtype'] = 'uint8'
+        gt_profile['nodata'] = None
+
+        with rasterio.open(save_path_tif / gt_id, 'w', **gt_profile) as gt_dst:
+            gt_dst.write(mask, 1)
+
+        mask_rgb = np.stack([mask, mask, mask], axis=-1)
+        Image.fromarray(mask_rgb).save(save_path_png / gt_id)
+
+        # also save as clipped images
+        for i, (top, left) in enumerate(tile_coords):
+            mask_tile = mask_rgb[top:top + 256, left:left + 256, :]
+            Image.fromarray(mask_tile).save(save_path_png / f'{i}_{gt_id}')
 
     # pred masks
+    pred_id = f"S2_{img_id}.tif"
+    for model, _ in sr_models.items():
+        pred_img_path = pred_path / model / "predicted" / pred_id
+        colored_img_path = pred_path / model / "colored" / pred_id
 
-    break
+        to_pred_tif = save_path_tif / f'PRED_SR_{model}_predicted_{img_id}.tif'
+        to_pred_png = save_path_png / f'PRED_SR_{model}_predicted_{img_id}.png'
+
+        to_col_tif = save_path_tif / f'PRED_SR_{model}_colored_{img_id}.tif'
+        to_col_png = save_path_png / f'PRED_SR_{model}_colored_{img_id}.png'
+
+        # just copy tif
+        shutil.copy(src=pred_img_path, dst=to_pred_tif)
+        shutil.copy(src=colored_img_path, dst=to_col_tif)
+
+        # do pngs
+        with rasterio.open(pred_img_path, 'r') as pred_img_src:
+            pred_mask = pred_img_src.read(1).astype(np.uint8) * 255
+
+            pred_mask_rgb = np.stack([pred_mask, pred_mask, pred_mask], axis=-1)
+            Image.fromarray(pred_mask_rgb).save(to_pred_png)
+
+        with rasterio.open(colored_img_path, 'r') as col_img_src:
+            col_mask = col_img_src.read(1).astype(np.uint8)
+
+            col_mask_rgb = np.stack([col_mask, col_mask, col_mask], axis=-1)
+            col_mask_rgb[col_mask == 1, 1] = 255
+            col_mask_rgb[col_mask == 2, 0] = 255
+            col_mask_rgb[col_mask == 3, 2] = 255
+
+            Image.fromarray(col_mask_rgb).save(to_col_png)
 
 
 
