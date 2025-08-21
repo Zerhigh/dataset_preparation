@@ -134,8 +134,11 @@ def plot_histogram(df, col='assigned_class'):
 #base = Path('/data/USERS/shollend/taco')
 #tiles = pd.read_csv(BASE / 's2_ortho_download_data.gpkg')
 
-BASE = Path(r'C:\Users\PC\Desktop\TU\Master\MasterThesis\data\combined_download')
+#BASE = Path(r'C:\Users\PC\Desktop\TU\Master\MasterThesis\data\combined_download')
+BASE = Path('/data/USERS/shollend/combined_download')
 tiles = gpd.read_file(BASE / 's2_ortho_download_data.gpkg')
+
+Path('stratification_tests').mkdir(parents=True, exist_ok=True)
 
 print('------------------------------')
 print(f'Number of tiles: {len(tiles)}')
@@ -189,5 +192,8 @@ train.to_file('stratification_tests/train.gpkg', driver='GPKG')
 test.to_file('stratification_tests/test.gpkg', driver='GPKG')
 val.to_file('stratification_tests/val.gpkg', driver='GPKG')
 
+train.to_csv('stratification_tests/train.csv')
+test.to_csv('stratification_tests/test.csv')
+val.to_csv('stratification_tests/val.csv')
 
 
