@@ -1,4 +1,6 @@
 import shutil
+from asyncio import wait_for
+
 import pandas as pd
 import rasterio
 from pathlib import Path
@@ -83,7 +85,7 @@ sr_models = {
 
 data = pd.read_csv(data_path)
 sampeld = pd.concat([df.sample(n=3, random_state=32) for i, df in data.groupby(data['assigned_class'])], axis=0)
-print(sampeld['id'])
+
 
 for i, row in tqdm.tqdm(sampeld.iterrows()):
     img_id = f"{row['id']:05d}"
@@ -112,12 +114,13 @@ for i, row in tqdm.tqdm(sampeld.iterrows()):
 
         # save as pnh
         png_s2_img = np.transpose(s2_img, (1, 2, 0))
-        Image.fromarray(png_s2_img).save(save_path_png / s2_id)
+        s2_id_xx = s2_id.replace('tif', 'png')
+        Image.fromarray(png_s2_img).save(save_path_png / s2_id_xx)
 
         s2tile_coords = [(0, 0), (0, 32), (32, 0), (32, 32)]
         for i, (top, left) in enumerate(s2tile_coords):
             s2_tile = png_s2_img[top:top + 32, left:left + 32, :]
-            Image.fromarray(s2_tile).save(save_path_png / f'{i}_{s2_id}')
+            Image.fromarray(s2_tile).save(save_path_png / f'{i}_{s2_id_xx}')
 
     # get sr iamges
     for model, sr_path in sr_models.items():
@@ -157,10 +160,11 @@ for i, row in tqdm.tqdm(sampeld.iterrows()):
 
             # save as pnh
             png_sr_img = np.transpose(sr_img, (1, 2, 0))
-            Image.fromarray(png_sr_img).save(save_path_png / sr_save_id)
+            sr_save_id_xx = sr_save_id.replace('tif', 'png')
+            Image.fromarray(png_sr_img).save(save_path_png / sr_save_id_xx)
             for i, (top, left) in enumerate(tile_coords):
                 mask_tile = png_sr_img[top:top + 256, left:left + 256, :]
-                Image.fromarray(mask_tile).save(save_path_png / f'{i}_{sr_save_id}')
+                Image.fromarray(mask_tile).save(save_path_png / f'{i}_{sr_save_id_xx}')
 
             continue
 
@@ -193,10 +197,11 @@ for i, row in tqdm.tqdm(sampeld.iterrows()):
 
         # save as pnh
         png_sr_img = np.transpose(sr_img, (1, 2, 0))
-        Image.fromarray(png_sr_img).save(save_path_png / sr_save_id)
+        sr_save_id_xx = sr_save_id.replace('tif', 'png')
+        Image.fromarray(png_sr_img).save(save_path_png / sr_save_id_xx)
         for i, (top, left) in enumerate(tile_coords):
             mask_tile = png_sr_img[top:top + 256, left:left + 256, :]
-            Image.fromarray(mask_tile).save(save_path_png / f'{i}_{sr_save_id}')
+            Image.fromarray(mask_tile).save(save_path_png / f'{i}_{sr_save_id_xx}')
 
     # gt masks
     gt_id = f"HR_mask_{img_id}.tif"
@@ -216,12 +221,13 @@ for i, row in tqdm.tqdm(sampeld.iterrows()):
             gt_dst.write(mask, 1)
 
         mask_rgb = np.stack([mask, mask, mask], axis=-1)
-        Image.fromarray(mask_rgb).save(save_path_png / gt_id)
+        gt_id_xx = gt_id.replace('tif', 'png')
+        Image.fromarray(mask_rgb).save(save_path_png / gt_id_xx)
 
         # also save as clipped images
         for i, (top, left) in enumerate(tile_coords):
             mask_tile = mask_rgb[top:top + 256, left:left + 256, :]
-            Image.fromarray(mask_tile).save(save_path_png / f'{i}_{gt_id}')
+            Image.fromarray(mask_tile).save(save_path_png / f'{i}_{gt_id_xx}')
 
     # pred masks
     pred_id = f"S2_{img_id}.tif"
@@ -250,9 +256,14 @@ for i, row in tqdm.tqdm(sampeld.iterrows()):
             col_mask = col_img_src.read(1).astype(np.uint8)
 
             col_mask_rgb = np.stack([col_mask, col_mask, col_mask], axis=-1)
-            col_mask_rgb[col_mask == 1, 1] = 255
-            col_mask_rgb[col_mask == 2, 0] = 255
-            col_mask_rgb[col_mask == 3, 2] = 255
+            # np_colored[tp] = 1
+            # np_colored[fp] = 2
+            # np_colored[fn] = 3
+            # np_colored[tn] = 0
+
+            col_mask_rgb[col_mask == 1, 1] = 255 #green
+            col_mask_rgb[col_mask == 2, 0] = 255 #red
+            col_mask_rgb[col_mask == 3, 2] = 255 # blue
 
             Image.fromarray(col_mask_rgb).save(to_col_png)
 
