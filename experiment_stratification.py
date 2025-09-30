@@ -133,13 +133,11 @@ def plot_histogram(df, col='assigned_class'):
     plt.show()
 
 
-#base = Path('/data/USERS/shollend/taco')
-#tiles = pd.read_csv(BASE / 's2_ortho_download_data.gpkg')
-
 BASE = Path(r'C:\Users\PC\Desktop\TU\Master\MasterThesis\data\combined_download')
 output_dir = Path(r'C:\Users\PC\Desktop\TU\Master\MasterThesis\data\combined_download_correlated_testing')
-#tiles = gpd.read_file(BASE / 's2_ortho_download_data.gpkg')
-tiles = gpd.read_file(output_dir / 'treshh_0dot5.gpkg')
+tiles = gpd.read_file(BASE / 's2_ortho_download_data.gpkg')
+
+Path('stratification_tests').mkdir(parents=True, exist_ok=True)
 
 print('------------------------------')
 print(f'Number of tiles: {len(tiles)}')
