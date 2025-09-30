@@ -56,7 +56,7 @@ def assign_jenks_class(ratio, jenks):
 def filter_df(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     # filter 1: NoData Hard boolean filter
     df_rej = df[df['contains_nodata'] == True]
-    df_rej.to_file('stratification_tests/nodata_tiles.gpkg', driver='GPKG')
+    df_rej.to_file(f'{output_dir}/nodata_tiles.gpkg', driver='GPKG')
     df = df[df['contains_nodata'] == False]
 
     # filter 1: NoData from 1% onwards
@@ -69,6 +69,8 @@ def filter_df(df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     # filter 2: Reduce number of NoBuilding tiles
     meta_buildings = df[df['dist_41'] > 0]
     meta_no_buildings = df[df['dist_41'] == 0]
+
+    print(f'Number of tiles with buildings (before readding): {len(meta_buildings)}')
 
     # num of samples to have 5% of total sample number non-buildings
     percent = 0.05
@@ -135,7 +137,9 @@ def plot_histogram(df, col='assigned_class'):
 #tiles = pd.read_csv(BASE / 's2_ortho_download_data.gpkg')
 
 BASE = Path(r'C:\Users\PC\Desktop\TU\Master\MasterThesis\data\combined_download')
-tiles = gpd.read_file(BASE / 's2_ortho_download_data.gpkg')
+output_dir = Path(r'C:\Users\PC\Desktop\TU\Master\MasterThesis\data\combined_download_correlated_testing')
+#tiles = gpd.read_file(BASE / 's2_ortho_download_data.gpkg')
+tiles = gpd.read_file(output_dir / 'treshh_0dot5.gpkg')
 
 print('------------------------------')
 print(f'Number of tiles: {len(tiles)}')
@@ -182,12 +186,17 @@ get_class_statistics(df=val, col='assigned_class')
 
 print('------------------------------')
 
-filtered_tiles.to_file('stratification_tests/filtered_no_buildings.gpkg', driver='GPKG')
-stratified_tiles.to_file('stratification_tests/filtered_no_buildings_stratified.gpkg', driver='GPKG')
+filtered_tiles.to_file(f'{output_dir}/filtered_no_buildings.gpkg', driver='GPKG')
+stratified_tiles.to_file(f'{output_dir}/filtered_no_buildings_stratified.gpkg', driver='GPKG')
 
-train.to_file('stratification_tests/train.gpkg', driver='GPKG')
-test.to_file('stratification_tests/test.gpkg', driver='GPKG')
-val.to_file('stratification_tests/val.gpkg', driver='GPKG')
+train.to_file(f'{output_dir}/train.gpkg', driver='GPKG')
+test.to_file(f'{output_dir}/test.gpkg', driver='GPKG')
+val.to_file(f'{output_dir}/val.gpkg', driver='GPKG')
+
+train.to_csv(f'{output_dir}/train.csv')
+test.to_csv(f'{output_dir}/test.csv')
+val.to_csv(f'{output_dir}/val.csv')
+
 
 
 
