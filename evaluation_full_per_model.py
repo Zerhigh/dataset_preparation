@@ -1,11 +1,5 @@
 from pathlib import Path
-import geopandas as gpd
 import pandas as pd
-import numpy as np
-from typing import Tuple, List
-from sklearn.model_selection import train_test_split
-import jenkspy
-import matplotlib.pyplot as plt
 
 test_data = pd.read_csv(Path(r"C:\Users\PC\Desktop\TU\Master\MasterThesis\data\stratification_tables\filtered\test.csv"))
 cols_keep = ['id', 'assigned_class']
@@ -32,27 +26,3 @@ for i, table in tables:
     res_dict[sr_name] = res
 
 print(res_dict)
-pass
-
-# for table in sr_data.glob('full_*.csv'):
-#     sr_name = table.name.split('_')[1].split('.')[0]
-#     sr_data = pd.read_csv(table)
-#     merged = pd.merge(data, sr_data, left_on='id', right_on='image_id')
-#
-#     # find all perfect scores
-#     vals_no_mean = [x[1].drop(columns=['image_id', 'id', 'accuracy']) for x in merged.groupby('assigned_class')]
-#     test = vals_no_mean[0]['iou'].to_list()
-#     for x in test:
-#         if x>0:
-#             pass
-#
-#
-#     vals = [x[1].drop(columns=['image_id', 'id', 'accuracy']).mean().to_dict() for x in merged.groupby('assigned_class')]
-#     res = {}
-#     for val in vals:
-#         k = val.pop('assigned_class')
-#         res[k] = val
-#     res_dict[sr_name] = res
-#
-# print(res_dict)
-# pass
